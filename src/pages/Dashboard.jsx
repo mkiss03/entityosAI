@@ -12,12 +12,17 @@ import * as d3 from "d3";
 import { cn, useInterval, formatPct } from "../utils/helpers";
 import { NAV, MOCK } from "../constants";
 import { AmbientNeon, GlassCard, NeonDivider, Badge } from "../components/ui";
+import { generateGraph } from "../lib/openai";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../lib/useAuth";
 
 export function Dashboard() {
+  const { user } = useAuth();
   const [active, setActive] = useState("mapping");
   const [hovered, setHovered] = useState(null);
   const [selected, setSelected] = useState("Tesla");
   const [scanState, setScanState] = useState({ running: false, step: 0 });
+  const [brandName] = useState("Tesla"); // Brand to scan
   const [terminal, setTerminal] = useState(() => [
     "[boot] EntityOS kernel online · neon pipeline ready",
     "[graph] loaded 10 nodes, 10 edges",
@@ -175,20 +180,20 @@ export function Dashboard() {
     scanState.running ? 700 : 1400
   );
 
-  // Scan animation + RAG log injection
-  const triggerScan = () => {
+  // Scan with OpenAI + Save to Supabase
+  const triggerScan = async () => {
     if (scanState.running) return;
+
+    const startedAt = Date.now();
     setScanState({ running: true, step: 0 });
 
     const steps = [
-      { tag: "ingest", text: "Ingesting sources… (mock)" },
-      { tag: "embed", text: "Generating embeddings… (mock)" },
-      { tag: "retrieve", text: "Retrieving context… (mock)" },
-      { tag: "synthesize", text: "Synthesizing graph updates… (mock)" },
-      { tag: "commit", text: "Committing deltas to EntityStore… (mock)" },
+      { tag: "ingest", text: "Analyzing brand data with AI…" },
+      { tag: "embed", text: "Generating entity embeddings…" },
+      { tag: "retrieve", text: "Extracting relationships…" },
+      { tag: "synthesize", text: "Building knowledge graph…" },
+      { tag: "commit", text: "Saving to database…" },
     ];
-
-    const startedAt = Date.now();
 
     // Make the graph gently re-energize
     try {
@@ -197,6 +202,7 @@ export function Dashboard() {
       // Ignore errors if simulation is not ready
     }
 
+    // Animate through steps
     steps.forEach((s, idx) => {
       window.setTimeout(() => {
         setScanState((prev) => ({ ...prev, step: idx + 1 }));
@@ -204,30 +210,129 @@ export function Dashboard() {
           ...prev,
           {
             role: "assistant",
-            text: `▶ ${s.text}  · focus: ${selected}`,
+            text: `▶ ${s.text}  · brand: ${brandName}`,
             ts: Date.now(),
           },
         ]);
-        setTerminal((prev) => [...prev, `[scan:${s.tag}] ${s.text} (entity=${selected})`]);
+        setTerminal((prev) => [...prev, `[scan:${s.tag}] ${s.text} (brand=${brandName})`]);
       }, 420 + idx * 520);
     });
 
-    window.setTimeout(() => {
+    // Actually generate the graph with OpenAI
+    try {
+      console.log('[Dashboard] Starting graph generation for:', brandName);
+      const graphData = await generateGraph(brandName);
+      console.log('[Dashboard] Graph generated successfully:', graphData);
+
+      // Save to Supabase
+      if (user) {
+        console.log('[Dashboard] User logged in, saving to Supabase...', user.id);
+        const { data, error } = await supabase
+          .from('scans')
+          .insert([
+            {
+              user_id: user.id,
+              brand_name: brandName,
+              graph_data: graphData,
+            },
+          ])
+          .select();
+
+        if (error) {
+          console.error('[Dashboard] Supabase save error:', error);
+          setTerminal((prev) => [...prev, `[error] Failed to save: ${error.message}`]);
+        } else {
+          console.log('[Dashboard] Supabase save successful:', data);
+          setTerminal((prev) => [...prev, `[db] Scan saved successfully (id: ${data[0].id})`]);
+        }
+      } else {
+        console.warn('[Dashboard] User not logged in, skipping database save');
+        setTerminal((prev) => [...prev, '[warn] Not logged in - scan not saved to database']);
+      }
+
+      // Update the graph visualization
+      console.log('[Dashboard] Updating visualization with new graph data');
+      const newNodes = graphData.nodes.map((n) => ({ ...n }));
+      const newLinks = graphData.links.map((l) => ({ ...l }));
+      console.log('[Dashboard] New nodes:', newNodes.length, 'New links:', newLinks.length);
+
+      setLayout({ nodes: newNodes, links: newLinks });
+
+      // Re-initialize the force simulation with new data
+      const w = 900;
+      const h = 640;
+
+      const nodes = newNodes.map((n) => ({
+        ...n,
+        x: w / 2 + (Math.random() - 0.5) * 80,
+        y: h / 2 + (Math.random() - 0.5) * 80,
+      }));
+
+      if (simRef.current) {
+        simRef.current.stop();
+      }
+
+      const sim = d3
+        .forceSimulation(nodes)
+        .force(
+          "link",
+          d3
+            .forceLink(newLinks)
+            .id((d) => d.id)
+            .distance(140)
+            .strength(0.7)
+        )
+        .force("charge", d3.forceManyBody().strength(-520))
+        .force("center", d3.forceCenter(w / 2, h / 2))
+        .force("collide", d3.forceCollide().radius(34))
+        .alphaDecay(0.04)
+        .velocityDecay(0.35);
+
+      sim.on("tick", () => {
+        setLayout((prev) => ({
+          ...prev,
+          nodes: nodes.map((n) => ({ ...n })),
+          links: newLinks.map((l) => ({ ...l })),
+        }));
+      });
+
+      simRef.current = sim;
+      console.log('[Dashboard] D3 simulation restarted with new data');
+
+      window.setTimeout(() => {
+        setRagMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: `✓ Scan complete. Generated ${graphData.nodes.length} entities and ${graphData.links.length} relationships.`,
+            ts: Date.now(),
+          },
+        ]);
+        setTerminal((prev) => [
+          ...prev,
+          `[scan] done in ~${Math.round((Date.now() - startedAt) / 100) / 10}s`,
+          `[graph] ${graphData.nodes.length} nodes, ${graphData.links.length} edges`,
+        ]);
+        setScanState({ running: false, step: 0 });
+      }, 420 + steps.length * 520 + 400);
+
+    } catch (error) {
+      console.error('[Dashboard] CRITICAL ERROR during scan:', error);
+      console.error('[Dashboard] Error stack:', error.stack);
       setRagMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          text:
-            "✓ Scan complete. Graph confidence updated; watchlist & sentiment counters refreshed (mock).",
+          text: `✗ Scan failed: ${error.message}. Using fallback data.`,
           ts: Date.now(),
         },
       ]);
       setTerminal((prev) => [
         ...prev,
-        `[scan] done in ~${Math.round((Date.now() - startedAt) / 100) / 10}s`,
+        `[error] Scan failed: ${error.message}`,
       ]);
       setScanState({ running: false, step: 0 });
-    }, 420 + steps.length * 520 + 400);
+    }
   };
 
   const onNodeClick = (id) => {
