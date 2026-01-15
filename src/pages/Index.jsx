@@ -20,9 +20,20 @@ import {
   NetworkHeroArt,
   Badge,
 } from "../components/ui";
+import { useAuth } from "../lib/useAuth";
 
 export function Index() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Handle Start Free Scan button click
+  const handleStartScan = () => {
+    if (user) {
+      navigate("/dashboard");
+    } else {
+      navigate("/login");
+    }
+  };
 
   const features = [
     {
@@ -127,7 +138,7 @@ export function Index() {
               Open Dashboard
             </Link>
             <button
-              onClick={() => navigate("/dashboard")}
+              onClick={handleStartScan}
               className={cn(
                 "group relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold",
                 "border border-slate-800/70 bg-slate-900/35 backdrop-blur-xl",
@@ -178,7 +189,7 @@ export function Index() {
 
               <div className="mt-9 flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => navigate("/dashboard")}
+                  onClick={handleStartScan}
                   className={cn(
                     "group relative inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold",
                     "border border-slate-800/70 bg-slate-900/35 backdrop-blur-xl",
