@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { PageTransition } from "./components/ui";
-import { Index, Dashboard } from "./pages";
+import { Index, Dashboard, Login } from "./pages";
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -12,6 +12,14 @@ function AnimatedRoutes() {
         element={
           <PageTransition>
             <Index />
+          </PageTransition>
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <PageTransition>
+            <Login />
           </PageTransition>
         }
       />
