@@ -193,7 +193,9 @@ export function Dashboard() {
     // Make the graph gently re-energize
     try {
       simRef.current?.alpha(0.9)?.restart();
-    } catch {}
+    } catch {
+      // Ignore errors if simulation is not ready
+    }
 
     steps.forEach((s, idx) => {
       window.setTimeout(() => {
@@ -829,7 +831,7 @@ export function Dashboard() {
             <div className="flex items-center gap-2">
               <div className="flex-1 rounded-xl border border-slate-800/70 bg-slate-900/25 px-3 py-2">
                 <div className="text-[11px] text-slate-400">prompt</div>
-                <div className="font-mono text-xs text-slate-200">"simulate retrieval for {selected}"</div>
+                <div className="font-mono text-xs text-slate-200">&quot;simulate retrieval for {selected}&quot;</div>
               </div>
               <button
                 onClick={() => {
