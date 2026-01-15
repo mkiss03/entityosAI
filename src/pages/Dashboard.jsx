@@ -220,10 +220,13 @@ export function Dashboard() {
 
     // Actually generate the graph with OpenAI
     try {
+      console.log('[Dashboard] Starting graph generation for:', brandName);
       const graphData = await generateGraph(brandName);
+      console.log('[Dashboard] Graph generated successfully:', graphData);
 
       // Save to Supabase
       if (user) {
+        console.log('[Dashboard] User logged in, saving to Supabase...', user.id);
         const { data, error } = await supabase
           .from('scans')
           .insert([
@@ -236,16 +239,22 @@ export function Dashboard() {
           .select();
 
         if (error) {
-          console.error('Error saving scan to Supabase:', error);
+          console.error('[Dashboard] Supabase save error:', error);
           setTerminal((prev) => [...prev, `[error] Failed to save: ${error.message}`]);
         } else {
+          console.log('[Dashboard] Supabase save successful:', data);
           setTerminal((prev) => [...prev, `[db] Scan saved successfully (id: ${data[0].id})`]);
         }
+      } else {
+        console.warn('[Dashboard] User not logged in, skipping database save');
+        setTerminal((prev) => [...prev, '[warn] Not logged in - scan not saved to database']);
       }
 
       // Update the graph visualization
+      console.log('[Dashboard] Updating visualization with new graph data');
       const newNodes = graphData.nodes.map((n) => ({ ...n }));
       const newLinks = graphData.links.map((l) => ({ ...l }));
+      console.log('[Dashboard] New nodes:', newNodes.length, 'New links:', newLinks.length);
 
       setLayout({ nodes: newNodes, links: newLinks });
 
@@ -288,6 +297,7 @@ export function Dashboard() {
       });
 
       simRef.current = sim;
+      console.log('[Dashboard] D3 simulation restarted with new data');
 
       window.setTimeout(() => {
         setRagMessages((prev) => [
@@ -307,7 +317,8 @@ export function Dashboard() {
       }, 420 + steps.length * 520 + 400);
 
     } catch (error) {
-      console.error('Error during scan:', error);
+      console.error('[Dashboard] CRITICAL ERROR during scan:', error);
+      console.error('[Dashboard] Error stack:', error.stack);
       setRagMessages((prev) => [
         ...prev,
         {
