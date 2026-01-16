@@ -182,10 +182,18 @@ export function Dashboard() {
 
   // Scan with OpenAI + Save to Supabase
   const triggerScan = async () => {
-    if (scanState.running) return;
+    console.log('[Dashboard] ========== SCAN BUTTON CLICKED ==========');
+    setTerminal((prev) => [...prev, '[DEBUG] ========== SCAN BUTTON CLICKED ==========']);
+
+    if (scanState.running) {
+      console.log('[Dashboard] Scan already running, ignoring click');
+      setTerminal((prev) => [...prev, '[DEBUG] Scan already running, ignoring click']);
+      return;
+    }
 
     const startedAt = Date.now();
     setScanState({ running: true, step: 0 });
+    console.log('[Dashboard] Scan state set to running');
 
     const steps = [
       { tag: "ingest", text: "Analyzing brand data with AI…" },
@@ -221,7 +229,11 @@ export function Dashboard() {
     // Actually generate the graph with OpenAI
     try {
       console.log('[Dashboard] Starting graph generation for:', brandName);
+      setTerminal((prev) => [...prev, `[DEBUG] About to call OpenAI API for: ${brandName}`]);
+
       const graphData = await generateGraph(brandName);
+
+      setTerminal((prev) => [...prev, '[DEBUG] OpenAI API call completed successfully']);
       console.log('[Dashboard] Graph generated successfully:', graphData);
 
       // Save to Supabase
@@ -252,6 +264,8 @@ export function Dashboard() {
 
       // Update the graph visualization
       console.log('[Dashboard] Updating visualization with new graph data');
+      setTerminal((prev) => [...prev, `[DEBUG] Updating visualization with ${graphData.nodes.length} nodes and ${graphData.links.length} links`]);
+
       const newNodes = graphData.nodes.map((n) => ({ ...n }));
       const newLinks = graphData.links.map((l) => ({ ...l }));
       console.log('[Dashboard] New nodes:', newNodes.length, 'New links:', newLinks.length);
@@ -298,6 +312,7 @@ export function Dashboard() {
 
       simRef.current = sim;
       console.log('[Dashboard] D3 simulation restarted with new data');
+      setTerminal((prev) => [...prev, '[DEBUG] D3 force simulation restarted - graph should be animating now']);
 
       window.setTimeout(() => {
         setRagMessages((prev) => [
