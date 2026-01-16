@@ -384,18 +384,11 @@ export function Dashboard() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-red-500 text-slate-100">
-      {/* VIZUÁLIS TESZT: HA LÁTOD A PIROS HÁTTERET, AKKOR A FÁJL FRISSÜL! */}
-
-      {/* DEBUG BANNER - REMOVE THIS AFTER TESTING */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-400 text-black text-center py-4 text-2xl font-bold">
-        🚨 VIZUÁLIS TESZT AKTÍV - HA LÁTOD EZT A SÁRGA BANNERT, A FÁJL FRISSÜLT! 🚨
-      </div>
-
+    <div className="min-h-screen bg-slate-950 text-slate-100">
       <AmbientNeon />
 
       {/* Top bar */}
-      <div className="relative z-10 flex items-center justify-between border-b border-slate-800/70 bg-slate-950/60 px-4 py-3 backdrop-blur-xl mt-16">
+      <div className="relative z-10 flex items-center justify-between border-b border-slate-800/70 bg-slate-950/60 px-4 py-3 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <Link to="/" className="group relative">
             <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-fuchsia-500/30 via-cyan-400/30 to-indigo-400/30 blur opacity-70 transition group-hover:opacity-100" />
@@ -437,17 +430,6 @@ export function Dashboard() {
               {scanState.running ? "scanning" : "idle"}
             </span>
           </div>
-
-          {/* DEBUG: Test button to verify onClick works */}
-          <button
-            onClick={() => {
-              alert('🟢 TESZT: A gomb működik!\n\nHa látod ezt az üzenetet, akkor a JavaScript események rendben vannak.\n\nMost próbáld meg a Scan Now gombot!');
-              setTerminal((prev) => [...prev, '[DEBUG-TEST] Test button clicked - JavaScript events are working!']);
-            }}
-            className="rounded-xl border border-green-500/50 bg-green-900/25 px-3 py-2 text-xs text-green-200 hover:bg-green-900/40"
-          >
-            🧪 TEST
-          </button>
 
           <button
             onClick={triggerScan}
