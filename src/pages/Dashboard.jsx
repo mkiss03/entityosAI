@@ -431,8 +431,20 @@ export function Dashboard() {
             </span>
           </div>
 
+          {/* DEBUG: Test button to verify onClick works */}
+          <button
+            onClick={() => {
+              alert('🟢 TESZT: A gomb működik!\n\nHa látod ezt az üzenetet, akkor a JavaScript események rendben vannak.\n\nMost próbáld meg a Scan Now gombot!');
+              setTerminal((prev) => [...prev, '[DEBUG-TEST] Test button clicked - JavaScript events are working!']);
+            }}
+            className="rounded-xl border border-green-500/50 bg-green-900/25 px-3 py-2 text-xs text-green-200 hover:bg-green-900/40"
+          >
+            🧪 TEST
+          </button>
+
           <button
             onClick={triggerScan}
+            disabled={scanState.running}
             className={cn(
               "group relative inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold",
               "border border-slate-800/70 bg-slate-900/35 backdrop-blur-xl",
