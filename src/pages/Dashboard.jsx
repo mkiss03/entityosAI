@@ -384,11 +384,18 @@ export function Dashboard() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-red-500 text-slate-100">
+      {/* VIZUÁLIS TESZT: HA LÁTOD A PIROS HÁTTERET, AKKOR A FÁJL FRISSÜL! */}
+
+      {/* DEBUG BANNER - REMOVE THIS AFTER TESTING */}
+      <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-400 text-black text-center py-4 text-2xl font-bold">
+        🚨 VIZUÁLIS TESZT AKTÍV - HA LÁTOD EZT A SÁRGA BANNERT, A FÁJL FRISSÜLT! 🚨
+      </div>
+
       <AmbientNeon />
 
       {/* Top bar */}
-      <div className="relative z-10 flex items-center justify-between border-b border-slate-800/70 bg-slate-950/60 px-4 py-3 backdrop-blur-xl">
+      <div className="relative z-10 flex items-center justify-between border-b border-slate-800/70 bg-slate-950/60 px-4 py-3 backdrop-blur-xl mt-16">
         <div className="flex items-center gap-3">
           <Link to="/" className="group relative">
             <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-fuchsia-500/30 via-cyan-400/30 to-indigo-400/30 blur opacity-70 transition group-hover:opacity-100" />
