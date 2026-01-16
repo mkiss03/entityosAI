@@ -7,6 +7,7 @@ import {
   Cpu,
   Database,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import * as d3 from "d3";
 import { cn, useInterval, formatPct, devLog } from "../utils/helpers";
@@ -444,14 +445,15 @@ export function Dashboard() {
             )}
           >
             <span className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-fuchsia-500/20 via-cyan-400/20 to-indigo-400/20 blur opacity-0 transition group-hover:opacity-100" />
-            <Scan
-              className={cn(
-                "relative h-4 w-4",
-                scanState.running ? "animate-pulse text-cyan-200" : "text-slate-200"
-              )}
-            />
-            <span className="relative">Scan Now</span>
-            <ChevronRight className="relative h-4 w-4 text-slate-500 transition group-hover:text-cyan-200" />
+            {scanState.running ? (
+              <Loader2 className="relative h-4 w-4 animate-spin text-cyan-200" />
+            ) : (
+              <Scan className="relative h-4 w-4 text-slate-200" />
+            )}
+            <span className="relative">{scanState.running ? 'Scanning...' : 'Scan Now'}</span>
+            {!scanState.running && (
+              <ChevronRight className="relative h-4 w-4 text-slate-500 transition group-hover:text-cyan-200" />
+            )}
           </button>
         </div>
       </div>
