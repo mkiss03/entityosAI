@@ -29,3 +29,24 @@ export function formatPct(x) {
   const v = Math.max(0, Math.min(1, x));
   return `${Math.round(v * 100)}%`;
 }
+
+/**
+ * Development-only logging helper
+ * Logs messages only in dev mode, silent in production
+ */
+export const devLog = {
+  log: (...args) => {
+    if (import.meta.env.DEV) {
+      console.log(...args);
+    }
+  },
+  warn: (...args) => {
+    if (import.meta.env.DEV) {
+      console.warn(...args);
+    }
+  },
+  error: (...args) => {
+    // Errors always logged (even in production for monitoring)
+    console.error(...args);
+  },
+};

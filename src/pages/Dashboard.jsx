@@ -9,7 +9,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import * as d3 from "d3";
-import { cn, useInterval, formatPct } from "../utils/helpers";
+import { cn, useInterval, formatPct, devLog } from "../utils/helpers";
 import { NAV, MOCK } from "../constants";
 import { AmbientNeon, GlassCard, NeonDivider, Badge } from "../components/ui";
 import { generateGraph } from "../lib/openai";
@@ -182,18 +182,18 @@ export function Dashboard() {
 
   // Scan with OpenAI + Save to Supabase
   const triggerScan = async () => {
-    console.log('[Dashboard] ========== SCAN BUTTON CLICKED ==========');
+    devLog.log('[Dashboard] ========== SCAN BUTTON CLICKED ==========');
     setTerminal((prev) => [...prev, '[DEBUG] ========== SCAN BUTTON CLICKED ==========']);
 
     if (scanState.running) {
-      console.log('[Dashboard] Scan already running, ignoring click');
+      devLog.log('[Dashboard] Scan already running, ignoring click');
       setTerminal((prev) => [...prev, '[DEBUG] Scan already running, ignoring click']);
       return;
     }
 
     const startedAt = Date.now();
     setScanState({ running: true, step: 0 });
-    console.log('[Dashboard] Scan state set to running');
+    devLog.log('[Dashboard] Scan state set to running');
 
     const steps = [
       { tag: "ingest", text: "Analyzing brand data with AI…" },
@@ -228,17 +228,17 @@ export function Dashboard() {
 
     // Actually generate the graph with OpenAI
     try {
-      console.log('[Dashboard] Starting graph generation for:', brandName);
+      devLog.log('[Dashboard] Starting graph generation for:', brandName);
       setTerminal((prev) => [...prev, `[DEBUG] About to call OpenAI API for: ${brandName}`]);
 
       const graphData = await generateGraph(brandName);
 
       setTerminal((prev) => [...prev, '[DEBUG] OpenAI API call completed successfully']);
-      console.log('[Dashboard] Graph generated successfully:', graphData);
+      devLog.log('[Dashboard] Graph generated successfully:', graphData);
 
       // Save to Supabase
       if (user) {
-        console.log('[Dashboard] User logged in, saving to Supabase...', user.id);
+        devLog.log('[Dashboard] User logged in, saving to Supabase...', user.id);
         const { data, error } = await supabase
           .from('scans')
           .insert([
@@ -251,24 +251,24 @@ export function Dashboard() {
           .select();
 
         if (error) {
-          console.error('[Dashboard] Supabase save error:', error);
+          devLog.error('[Dashboard] Supabase save error:', error);
           setTerminal((prev) => [...prev, `[error] Failed to save: ${error.message}`]);
         } else {
-          console.log('[Dashboard] Supabase save successful:', data);
+          devLog.log('[Dashboard] Supabase save successful:', data);
           setTerminal((prev) => [...prev, `[db] Scan saved successfully (id: ${data[0].id})`]);
         }
       } else {
-        console.warn('[Dashboard] User not logged in, skipping database save');
+        devLog.warn('[Dashboard] User not logged in, skipping database save');
         setTerminal((prev) => [...prev, '[warn] Not logged in - scan not saved to database']);
       }
 
       // Update the graph visualization
-      console.log('[Dashboard] Updating visualization with new graph data');
+      devLog.log('[Dashboard] Updating visualization with new graph data');
       setTerminal((prev) => [...prev, `[DEBUG] Updating visualization with ${graphData.nodes.length} nodes and ${graphData.links.length} links`]);
 
       const newNodes = graphData.nodes.map((n) => ({ ...n }));
       const newLinks = graphData.links.map((l) => ({ ...l }));
-      console.log('[Dashboard] New nodes:', newNodes.length, 'New links:', newLinks.length);
+      devLog.log('[Dashboard] New nodes:', newNodes.length, 'New links:', newLinks.length);
 
       setLayout({ nodes: newNodes, links: newLinks });
 
@@ -311,7 +311,7 @@ export function Dashboard() {
       });
 
       simRef.current = sim;
-      console.log('[Dashboard] D3 simulation restarted with new data');
+      devLog.log('[Dashboard] D3 simulation restarted with new data');
       setTerminal((prev) => [...prev, '[DEBUG] D3 force simulation restarted - graph should be animating now']);
 
       window.setTimeout(() => {
@@ -332,8 +332,8 @@ export function Dashboard() {
       }, 420 + steps.length * 520 + 400);
 
     } catch (error) {
-      console.error('[Dashboard] CRITICAL ERROR during scan:', error);
-      console.error('[Dashboard] Error stack:', error.stack);
+      devLog.error('[Dashboard] CRITICAL ERROR during scan:', error);
+      devLog.error('[Dashboard] Error stack:', error.stack);
       setRagMessages((prev) => [
         ...prev,
         {
