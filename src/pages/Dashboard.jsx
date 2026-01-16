@@ -8,6 +8,9 @@ import {
   Database,
   ChevronRight,
   Loader2,
+  History,
+  Trash2,
+  Clock,
 } from "lucide-react";
 import * as d3 from "d3";
 import { cn, useInterval, formatPct, devLog } from "../utils/helpers";
@@ -24,6 +27,8 @@ export function Dashboard() {
   const [selected, setSelected] = useState("Tesla");
   const [scanState, setScanState] = useState({ running: false, step: 0 });
   const [brandName] = useState("Tesla"); // Brand to scan
+  const [scanHistory, setScanHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [terminal, setTerminal] = useState(() => [
     "[boot] EntityOS kernel online · neon pipeline ready",
     "[graph] loaded 10 nodes, 10 edges",
@@ -153,6 +158,41 @@ export function Dashboard() {
     };
   }, []);
 
+  // Load scan history from Supabase
+  useEffect(() => {
+    const fetchScanHistory = async () => {
+      if (!user) {
+        setScanHistory([]);
+        setLoadingHistory(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('scans')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          devLog.error('[Dashboard] Error loading scan history:', error);
+          setScanHistory([]);
+        } else {
+          devLog.log('[Dashboard] Loaded scan history:', data);
+          setScanHistory(data || []);
+        }
+      } catch (error) {
+        devLog.error('[Dashboard] Failed to fetch scan history:', error);
+        setScanHistory([]);
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    fetchScanHistory();
+  }, [user]);
+
   // Terminal scroll
   useInterval(
     () => {
@@ -257,6 +297,10 @@ export function Dashboard() {
         } else {
           devLog.log('[Dashboard] Supabase save successful:', data);
           setTerminal((prev) => [...prev, `[db] Scan saved successfully (id: ${data[0].id})`]);
+          // Add to scan history
+          if (data && data[0]) {
+            setScanHistory((prev) => [data[0], ...prev].slice(0, 10));
+          }
         }
       } else {
         devLog.warn('[Dashboard] User not logged in, skipping database save');
@@ -348,6 +392,91 @@ export function Dashboard() {
         `[error] Scan failed: ${error.message}`,
       ]);
       setScanState({ running: false, step: 0 });
+    }
+  };
+
+  // Load a scan from history into the visualization
+  const loadScan = (scan) => {
+    devLog.log('[Dashboard] Loading scan from history:', scan);
+
+    const graphData = scan.graph_data;
+    if (!graphData || !graphData.nodes || !graphData.links) {
+      devLog.error('[Dashboard] Invalid scan data:', scan);
+      return;
+    }
+
+    // Update the graph visualization
+    const newNodes = graphData.nodes.map((n) => ({ ...n }));
+    const newLinks = graphData.links.map((l) => ({ ...l }));
+
+    setLayout({ nodes: newNodes, links: newLinks });
+    setTerminal((prev) => [
+      ...prev,
+      `[history] Loaded scan: ${scan.brand_name} (${new Date(scan.created_at).toLocaleDateString()})`,
+    ]);
+
+    // Re-initialize the force simulation
+    const w = 900;
+    const h = 640;
+
+    const nodes = newNodes.map((n) => ({
+      ...n,
+      x: w / 2 + (Math.random() - 0.5) * 80,
+      y: h / 2 + (Math.random() - 0.5) * 80,
+    }));
+
+    if (simRef.current) {
+      simRef.current.stop();
+    }
+
+    const sim = d3
+      .forceSimulation(nodes)
+      .force(
+        "link",
+        d3
+          .forceLink(newLinks)
+          .id((d) => d.id)
+          .distance(140)
+          .strength(0.7)
+      )
+      .force("charge", d3.forceManyBody().strength(-520))
+      .force("center", d3.forceCenter(w / 2, h / 2))
+      .force("collide", d3.forceCollide().radius(34))
+      .alphaDecay(0.04)
+      .velocityDecay(0.35);
+
+    sim.on("tick", () => {
+      setLayout((prev) => ({
+        ...prev,
+        nodes: nodes.map((n) => ({ ...n })),
+        links: newLinks.map((l) => ({ ...l })),
+      }));
+    });
+
+    simRef.current = sim;
+  };
+
+  // Delete a scan from history
+  const deleteScan = async (scanId) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('scans')
+        .delete()
+        .eq('id', scanId)
+        .eq('user_id', user.id);
+
+      if (error) {
+        devLog.error('[Dashboard] Error deleting scan:', error);
+        setTerminal((prev) => [...prev, `[error] Failed to delete scan: ${error.message}`]);
+      } else {
+        devLog.log('[Dashboard] Scan deleted successfully');
+        setScanHistory((prev) => prev.filter((s) => s.id !== scanId));
+        setTerminal((prev) => [...prev, '[history] Scan deleted successfully']);
+      }
+    } catch (error) {
+      devLog.error('[Dashboard] Failed to delete scan:', error);
     }
   };
 
@@ -588,6 +717,76 @@ export function Dashboard() {
                   Dedupe
                 </button>
               </div>
+            </div>
+
+            {/* Scan History */}
+            <div className="rounded-xl border border-slate-800/70 bg-slate-900/25 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4 text-cyan-200" />
+                  <div className="text-xs font-semibold tracking-widest text-slate-400">SCAN HISTORY</div>
+                </div>
+                {!loadingHistory && scanHistory.length > 0 && (
+                  <span className="text-[10px] text-slate-500">{scanHistory.length} scans</span>
+                )}
+              </div>
+
+              {!user ? (
+                <div className="text-[11px] text-slate-400 text-center py-4">
+                  Sign in to see your scan history
+                </div>
+              ) : loadingHistory ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-cyan-200" />
+                </div>
+              ) : scanHistory.length === 0 ? (
+                <div className="text-[11px] text-slate-400 text-center py-4">
+                  No scans yet. Run your first scan!
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {scanHistory.map((scan) => (
+                    <div
+                      key={scan.id}
+                      className="rounded-lg border border-slate-800/70 bg-slate-950/40 p-2 hover:bg-slate-900/40 transition group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <button
+                          onClick={() => loadScan(scan)}
+                          className="flex-1 text-left"
+                        >
+                          <div className="text-[11px] font-semibold text-slate-200 group-hover:text-cyan-200 transition">
+                            {scan.brand_name}
+                          </div>
+                          <div className="flex items-center gap-1 mt-1">
+                            <Clock className="h-3 w-3 text-slate-500" />
+                            <span className="text-[10px] text-slate-500">
+                              {new Date(scan.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          {scan.graph_data && (
+                            <div className="text-[10px] text-slate-500 mt-1">
+                              {scan.graph_data.nodes?.length || 0} nodes · {scan.graph_data.links?.length || 0} links
+                            </div>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => deleteScan(scan.id)}
+                          className="p-1 rounded hover:bg-red-500/10 transition"
+                          title="Delete scan"
+                        >
+                          <Trash2 className="h-3 w-3 text-slate-500 hover:text-red-400 transition" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </GlassCard>
